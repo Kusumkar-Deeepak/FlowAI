@@ -11,3 +11,16 @@
 
 ---
 
+## Tech Stack  
+- **Frontend**: React.js, Tailwind CSS.  
+- **Backend**: Node.js, Express.js, MongoDB, Redis, WebSocket.  
+- **AI Support**: Google Gemini API.  
+
+---
+
+## Installation  
+
+1. Clone the repository:  
+   ```bash
+   git clone https://github.com/yourusername/FlowAI.git
+   cd FlowAI
