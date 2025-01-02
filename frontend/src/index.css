@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Hide scrollbar for conversation-area */
+.conversation-area {
+  position: relative; /* Ensure proper stacking */
+}
+
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, and Opera */
+}
+
+/* Prevent main screen overflow */
+body {
+  overflow: hidden; /* Prevent main screen from having its own scrollbar */
+}
+
+.message-box{
+  scroll-behavior: smooth;
+}
