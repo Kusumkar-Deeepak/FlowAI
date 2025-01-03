@@ -6,24 +6,40 @@ import { UserContext } from "../context/user.context";
 import Markdown from 'markdown-to-jsx'
 import hljs from 'highlight.js';
 
-// eslint-disable-next-line react/prop-types
-function SyntaxHighlightedCode({ children, className }) {
-  const ref = useRef(null);
 
-  useEffect(() => {
+// function SyntaxHighlightedCode({ children, className }) {
+//   const ref = useRef(null);
+
+//   useEffect(() => {
+//     // eslint-disable-next-line react/prop-types
+//     if (ref.current && className?.includes('lang-') && hljs) {
+//       hljs.highlightElement(ref.current);
+//     }
+//   }, [className, children]);
+
+//   return (
+//     <code ref={ref} className={className}>
+//       {children}
+//     </code>
+//   );
+// }
+
+function SyntaxHighlightedCode(props) {
+  const ref = useRef(null)
+
+  React.useEffect(() => {
     // eslint-disable-next-line react/prop-types
-    if (ref.current && className?.includes('lang-') && hljs) {
-      hljs.highlightElement(ref.current);
+    if (ref.current && props.className?.includes('lang-') && window.hljs) {
+      window.hljs.highlightElement(ref.current)
+
+      // hljs won't reprocess the element unless this attribute is removed
+      ref.current.removeAttribute('data-highlighted')
     }
-  }, [className, children]);
+    // eslint-disable-next-line react/prop-types
+  }, [props.className, props.children])
 
-  return (
-    <code ref={ref} className={className}>
-      {children}
-    </code>
-  );
+  return <code {...props} ref={ref} />
 }
-
 
 const Project = () => {
   const location = useLocation();
@@ -37,6 +53,10 @@ const Project = () => {
   const [users, setUsers] = useState([]);
   const messageBox = React.createRef();
   const [messages, setMessages] = useState([]);  // Array to store messages
+  const [fileTree, setFileTree] = useState({})
+  const [currentFile, setCurrentFile] = useState(null);
+
+  const [openFiles, setOpenFiles] = useState([])
 
   console.log('user', user);
 
@@ -59,9 +79,25 @@ const Project = () => {
     initializeSocket(project._id);
 
     receiveMessage('project-message', data => {
-      console.log('Received message:', data);
-      setMessages(prevMessages => [...prevMessages, data]);  // Update messages state
-    });
+      try {
+          if (data.sender._id === 'ai') {
+              const parsedMessage = JSON.parse(data.message); // Validate JSON format
+              console.log('parsedMessage', parsedMessage)
+              if (parsedMessage.fileTree) {
+                  setFileTree(parsedMessage.fileTree || {});
+              }
+              setMessages(prevMessages => [...prevMessages, data]);
+          } else {
+              setMessages(prevMessages => [...prevMessages, data]);
+          }
+      } catch (error) {
+          console.error('Error parsing AI response:', error);
+      }
+  });
+  
+
+
+
 
     axios.get(`/project/get-project/${location.state.project._id}`).then((res) => {
       setProject(res.data.project);
@@ -85,6 +121,7 @@ const Project = () => {
   function scrollToBottom() {
     messageBox.current.scrollTop = messageBox.current.scrollHeight;
   }
+
 
   const handleUserClick = (id) => {
     setSelectedUserIds((prevSelected) => {
@@ -117,6 +154,27 @@ const Project = () => {
       console.log("No users selected.");
     }
   };
+
+
+  function WriteAiMessage(message) {
+
+    const messageObject = JSON.parse(message)
+
+    return (
+      <div
+        className='overflow-auto bg-slate-950 text-white rounded-sm p-2'
+      >
+        <Markdown
+          // eslint-disable-next-line react/no-children-prop
+          children={messageObject.text}
+          options={{
+            overrides: {
+              code: SyntaxHighlightedCode,
+            },
+          }}
+        />
+      </div>)
+  }
 
   const filteredUsers = users.filter((user) =>
     (user.email || "").toLowerCase().includes(searchQuery.toLowerCase())
@@ -151,23 +209,12 @@ const Project = () => {
           >
             {/* Render messages by mapping through the messages array */}
             {messages.map((msg, index) => (
-              <div key={index} className={`${msg.sender._id === 'ai' ? 'max-w-80' : 'max-w-54'} ${msg.sender._id == user._id.toString() && 'ml-auto'}  message flex flex-col p-2 bg-slate-50 w-fit rounded-md`}>
+              <div key={index} className={`${msg.sender._id === 'ai' ? 'max-w-96' : 'max-w-54'} ${msg.sender._id == user._id.toString() && 'ml-auto'}  message flex flex-col p-2 bg-slate-50 w-fit rounded-md`}>
                 <small className='opacity-65 text-xs'>{msg.sender.email}</small>
                 <div className='text-sm'>
                   {msg.sender._id === 'ai' ?
-                    <div className='overflow-auto bg-slate-950 text-white rounded-sm p-2'>
-                      <Markdown
-                        options={{
-                          overrides: {
-                            code: {
-                              component: SyntaxHighlightedCode,
-                            },
-                          },
-                        }}
-                      >
-                        {msg.message}
-                      </Markdown>
-                    </div>
+
+                    WriteAiMessage(msg.message)
                     : msg.message}
                 </div>
               </div>
@@ -215,6 +262,85 @@ const Project = () => {
           </div>
         </div>
       </section>
+
+      <section className="right bg-slate-100 flex-grow h-full flex">
+        {/* Explorer Section */}
+        <div className="explorer h-full min-w-52 max-w-64 bg-slate-200 shadow-md border-r border-slate-300">
+          <div className="file-tree w-full">
+            {Object.keys(fileTree).map((file, index) => (
+              <button
+                key={index}
+                onClick={() => {
+                  if (fileTree[file].file) {
+                    setCurrentFile(file); // Set file for editing
+                    setOpenFiles([...new Set([...openFiles, file])]); // Avoid duplicates
+                  }
+                }}
+                className="tree-element cursor-pointer p-2 px-4 flex items-center gap-2 hover:bg-slate-300 w-full transition duration-150 ease-in-out"
+              >
+                <p className="font-medium text-base text-slate-800">{file}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Code Editor Section */}
+        {currentFile && (
+          <div className="code-editor flex flex-col flex-grow h-full bg-slate-50 shadow-inner">
+            {/* Open Files Tabs */}
+            <div className="top flex bg-slate-200 border-b border-slate-300">
+              {openFiles.map((file, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentFile(file)}
+                  className={`open-file cursor-pointer p-2 px-4 flex items-center gap-2 text-sm font-medium border-r border-slate-300 transition duration-150 ease-in-out ${currentFile === file ? "bg-slate-300 text-slate-900" : "hover:bg-slate-200 text-slate-700"
+                    }`}
+                >
+                  {file}
+                </button>
+              ))}
+            </div>
+
+            {/* Code Editor Area */}
+            <div className="bottom flex flex-grow">
+              {fileTree[currentFile]?.file?.contents && (
+                <div className="code-editor-area h-full overflow-auto flex-grow bg-slate-50">
+                  <pre className="hljs h-full">
+                    <code
+                      className="hljs h-full outline-none"
+                      contentEditable
+                      suppressContentEditableWarning
+                      onBlur={(e) => {
+                        const updatedContent = e.target.innerText;
+                        setFileTree((prevFileTree) => ({
+                          ...prevFileTree,
+                          [currentFile]: {
+                            file: {
+                              contents: updatedContent, // Update the content
+                            },
+                          },
+                        }));
+                      }}
+                      dangerouslySetInnerHTML={{
+                        __html: hljs.highlight(
+                          'javascript',
+                          fileTree[currentFile].file.contents || ''
+                        ).value, // Highlight syntax
+                      }}
+                      style={{
+                        whiteSpace: 'pre-wrap', // Preserve whitespace
+                        paddingBottom: '25rem', // Add space for scrolling
+                      }}
+                    />
+                  </pre>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+
+
 
       {/* Modal */}
       {isModalOpen && (
