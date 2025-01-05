@@ -40,10 +40,3 @@
 - **Google Gemini API**: Adds intelligence to the chat by providing smart AI-driven features.  
 
 ---
-
-## **Installation**  
-
-1. Clone the repository:  
-   ```bash
-   git clone https://github.com/yourusername/FlowAI.git
-   cd FlowAI
