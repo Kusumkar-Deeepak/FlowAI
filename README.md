@@ -13,7 +13,7 @@
 - Leverage Google Gemini AI for intelligent responses, suggestions, and conversational enhancements.  
 - Personalized chat assistance for an engaging user experience.  
 
-### ⚡ **Performance Optimization**  
+### ⚡ **Performance Optimization**   
 - Redis integration ensures low-latency data retrieval and caching for optimal performance.  
 - Designed to handle large-scale user bases seamlessly.  
 
