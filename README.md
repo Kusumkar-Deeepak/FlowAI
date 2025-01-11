@@ -13,7 +13,7 @@
 - Leverage Google Gemini AI for intelligent responses, suggestions, and conversational enhancements.  
 - Personalized chat assistance for an engaging user experience.  
 
-### ⚡ **Performance Optimization**  
+### ⚡ **Performance Optimization**   
 - Redis integration ensures low-latency data retrieval and caching for optimal performance.  
 - Designed to handle large-scale user bases seamlessly.  
 
@@ -40,10 +40,3 @@
 - **Google Gemini API**: Adds intelligence to the chat by providing smart AI-driven features.  
 
 ---
-
-## **Installation**  
-
-1. Clone the repository:  
-   ```bash
-   git clone https://github.com/yourusername/FlowAI.git
-   cd FlowAI
