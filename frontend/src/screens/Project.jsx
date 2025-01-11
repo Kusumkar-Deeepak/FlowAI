@@ -5,6 +5,7 @@ import { initializeSocket, receiveMessage, sendMessage } from "../config/socket"
 import { UserContext } from "../context/user.context";
 import Markdown from 'markdown-to-jsx'
 import hljs from 'highlight.js';
+import { getWebContainer } from "../config/WebContainer";
 
 
 // function SyntaxHighlightedCode({ children, className }) {
@@ -57,6 +58,7 @@ const Project = () => {
   const [currentFile, setCurrentFile] = useState(null);
 
   const [openFiles, setOpenFiles] = useState([])
+  const [webContainer, setWebContainer] = useState(null)
 
   console.log('user', user);
 
@@ -76,25 +78,43 @@ const Project = () => {
   }
 
   useEffect(() => {
-    initializeSocket(project._id);
+    initializeSocket(project._id)
+
+    if (!webContainer) {
+        getWebContainer().then(container => {
+            setWebContainer(container)
+            console.log("container started")
+        })
+    }
+
 
     receiveMessage('project-message', data => {
-      try {
-          if (data.sender._id === 'ai') {
-              const parsedMessage = JSON.parse(data.message); // Validate JSON format
-              console.log('parsedMessage', parsedMessage)
-              if (parsedMessage.fileTree) {
-                  setFileTree(parsedMessage.fileTree || {});
-              }
-              setMessages(prevMessages => [...prevMessages, data]);
-          } else {
-              setMessages(prevMessages => [...prevMessages, data]);
-          }
-      } catch (error) {
-          console.error('Error parsing AI response:', error);
-      }
-  });
-  
+
+        console.log(data)
+        
+        if (data.sender._id == 'ai') {
+
+
+            const message = JSON.parse(data.message)
+
+            console.log(message)
+
+            webContainer?.mount(message.fileTree)
+
+            if (message.fileTree) {
+                setFileTree(message.fileTree || {})
+            }
+            setMessages(prevMessages => [ ...prevMessages, data ]) // Update messages state
+        } else {
+
+
+            setMessages(prevMessages => [ ...prevMessages, data ]) // Update messages state
+        }
+    })
+
+
+
+
 
 
 
@@ -264,81 +284,116 @@ const Project = () => {
       </section>
 
       <section className="right bg-slate-100 flex-grow h-full flex">
-        {/* Explorer Section */}
-        <div className="explorer h-full min-w-52 max-w-64 bg-slate-200 shadow-md border-r border-slate-300">
-          <div className="file-tree w-full">
-            {Object.keys(fileTree).map((file, index) => (
-              <button
-                key={index}
-                onClick={() => {
-                  if (fileTree[file].file) {
-                    setCurrentFile(file); // Set file for editing
-                    setOpenFiles([...new Set([...openFiles, file])]); // Avoid duplicates
-                  }
-                }}
-                className="tree-element cursor-pointer p-2 px-4 flex items-center gap-2 hover:bg-slate-300 w-full transition duration-150 ease-in-out"
-              >
-                <p className="font-medium text-base text-slate-800">{file}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Code Editor Section */}
-        {currentFile && (
-          <div className="code-editor flex flex-col flex-grow h-full bg-slate-50 shadow-inner">
-            {/* Open Files Tabs */}
-            <div className="top flex bg-slate-200 border-b border-slate-300">
-              {openFiles.map((file, index) => (
+  {/* Explorer Section */}
+  <div className="explorer h-full min-w-52 max-w-64 bg-slate-200 shadow-md border-r border-slate-300">
+    <div className="file-tree w-full">
+      {Object.keys(fileTree).map((file, index) => (
+        // Check if the current item is a folder
+        typeof fileTree[file] === "object" && !fileTree[file].file ? (
+          <div key={index} className="folder p-2">
+            {/* Folder Name */}
+            <p className="font-medium text-base text-slate-800">{file}</p>
+            {/* Render Nested Files */}
+            <div className="nested-files pl-4">
+              {Object.keys(fileTree[file]).map((subFile, subIndex) => (
                 <button
-                  key={index}
-                  onClick={() => setCurrentFile(file)}
-                  className={`open-file cursor-pointer p-2 px-4 flex items-center gap-2 text-sm font-medium border-r border-slate-300 transition duration-150 ease-in-out ${currentFile === file ? "bg-slate-300 text-slate-900" : "hover:bg-slate-200 text-slate-700"
-                    }`}
+                  key={subIndex}
+                  onClick={() => {
+                    if (fileTree[file][subFile]?.file) {
+                      const filePath = `${file}/${subFile}`;
+                      setCurrentFile(filePath);
+                      setOpenFiles([...new Set([...openFiles, filePath])]);
+                    }
+                  }}
+                  className={`tree-element cursor-pointer p-2 flex items-center gap-2 transition duration-150 ease-in-out ${
+                    currentFile === `${file}/${subFile}`
+                      ? "bg-slate-300 text-slate-900"
+                      : "hover:bg-slate-300 text-slate-800"
+                  }`}
                 >
-                  {file}
+                  <p className="text-slate-800">{subFile}</p>
                 </button>
               ))}
             </div>
+          </div>
+        ) : (
+          // Render File Button
+          <button
+            key={index}
+            onClick={() => {
+              if (fileTree[file]?.file) {
+                setCurrentFile(file);
+                setOpenFiles([...new Set([...openFiles, file])]);
+              }
+            }}
+            className={`tree-element cursor-pointer p-2 flex items-center gap-2 transition duration-150 ease-in-out ${
+              currentFile === file ? "bg-slate-300 text-slate-900" : "hover:bg-slate-300 text-slate-800"
+            }`}
+          >
+            <p className="text-slate-800">{file}</p>
+          </button>
+        )
+      ))}
+    </div>
+  </div>
 
-            {/* Code Editor Area */}
-            <div className="bottom flex flex-grow">
-              {fileTree[currentFile]?.file?.contents && (
-                <div className="code-editor-area h-full overflow-auto flex-grow bg-slate-50">
-                  <pre className="hljs h-full">
-                    <code
-                      className="hljs h-full outline-none"
-                      contentEditable
-                      suppressContentEditableWarning
-                      onBlur={(e) => {
-                        const updatedContent = e.target.innerText;
-                        setFileTree((prevFileTree) => ({
-                          ...prevFileTree,
-                          [currentFile]: {
-                            file: {
-                              contents: updatedContent, // Update the content
-                            },
-                          },
-                        }));
-                      }}
-                      dangerouslySetInnerHTML={{
-                        __html: hljs.highlight(
-                          'javascript',
-                          fileTree[currentFile].file.contents || ''
-                        ).value, // Highlight syntax
-                      }}
-                      style={{
-                        whiteSpace: 'pre-wrap', // Preserve whitespace
-                        paddingBottom: '25rem', // Add space for scrolling
-                      }}
-                    />
-                  </pre>
-                </div>
-              )}
-            </div>
+  {/* Code Editor Section */}
+  {currentFile && (
+    <div className="code-editor flex flex-col flex-grow h-full bg-slate-50 shadow-inner">
+      {/* Open Files Tabs */}
+      <div className="top flex bg-slate-200 border-b border-slate-300">
+        {openFiles.map((file, index) => (
+          <button
+            key={index}
+            onClick={() => setCurrentFile(file)}
+            className={`open-file cursor-pointer p-2 px-4 flex items-center gap-2 text-sm font-medium border-r border-slate-300 transition duration-150 ease-in-out ${
+              currentFile === file ? "bg-slate-300 text-slate-900" : "hover:bg-slate-200 text-slate-700"
+            }`}
+          >
+            {file}
+          </button>
+        ))}
+      </div>
+
+      {/* Code Editor Area */}
+      <div className="bottom flex flex-grow">
+        {fileTree[currentFile]?.file?.contents && (
+          <div className="code-editor-area h-full overflow-auto flex-grow bg-slate-50">
+            <pre className="hljs h-full">
+              <code
+                className="hljs h-full outline-none"
+                contentEditable
+                suppressContentEditableWarning
+                onBlur={(e) => {
+                  const updatedContent = e.target.innerText;
+                  setFileTree((prevFileTree) => ({
+                    ...prevFileTree,
+                    [currentFile]: {
+                      file: {
+                        contents: updatedContent, // Update file contents on blur
+                      },
+                    },
+                  }));
+                }}
+                dangerouslySetInnerHTML={{
+                  __html: hljs.highlight(
+                    "javascript",
+                    fileTree[currentFile].file.contents || ""
+                  ).value,
+                }}
+                style={{
+                  whiteSpace: "pre-wrap", // Preserve formatting
+                  paddingBottom: "25rem", // Space for scrolling
+                }}
+              />
+            </pre>
           </div>
         )}
-      </section>
+      </div>
+    </div>
+  )}
+</section>
+
 
 
 
