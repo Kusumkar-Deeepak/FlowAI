@@ -18,9 +18,7 @@ const io = new Server(server, {
 
 io.use(async (socket, next) => {
   try {
-    const token =
-      socket.handshake.auth?.token ||
-      socket.handshake.headers?.authorization?.split(' ')[1];
+    const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.split(' ')[1];
     const projectId = socket.handshake.query?.projectId;
 
     if (!mongoose.Types.ObjectId.isValid(projectId)) {
@@ -32,10 +30,12 @@ io.use(async (socket, next) => {
     }
 
     // Fetch project and attach to socket
-    socket.project = await projectModel.findById(projectId).lean();
-    if (!socket.project) {
+    const project = await projectModel.findById(projectId).lean();
+    if (!project) {
       return next(new Error('Project not found'));
     }
+
+    socket.project = project; // Attach project to socket
 
     // Verify JWT and attach user data to socket
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -46,9 +46,11 @@ io.use(async (socket, next) => {
     socket.user = decoded;
     next();
   } catch (error) {
-    next(error);
+    console.error(error); // Logging the error for debugging
+    next(new Error('Authentication error')); // Send generic error to the client
   }
 });
+
 
 // Socket.io events
 io.on('connection', (socket) => {
@@ -58,32 +60,28 @@ io.on('connection', (socket) => {
   socket.join(socket.roomId);
 
   socket.on('project-message', async (data) => {
-
     const message = data.message;
-
+  
     const aiIsPresentInMessage = message.includes('@ai');
-    socket.broadcast
-      .to(socket.roomId)
-      .emit('project-message', data);
-
-
+    socket.broadcast.to(socket.roomId).emit('project-message', data); // Broadcast to others in the room
+  
     if (aiIsPresentInMessage) {
       const prompt = message.replace('@ai', '');
       const result = await generateResult(prompt);
-
+  
+      // Send AI generated result back to the same room
       io.to(socket.roomId).emit('project-message', {
         message: result,
         sender: {
           _id: 'ai',
-          email: "AI"
+          email: "AI",
         }
-      })
-
+      });
+  
       return;
     }
-
-
   });
+  
 
   socket.on('disconnect', () => {
     console.log('User disconnected');

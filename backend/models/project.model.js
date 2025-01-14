@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const projectSchema = new mongoose.Schema({
   name: {
@@ -6,17 +6,20 @@ const projectSchema = new mongoose.Schema({
     required: true,
     lowercase: true,
     trim: true,
-    unique: [true,'Project name already exists'],
+    unique: [true, "Project name already exists"],
   },
-  users:[
+  users: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    }
-  ]
-})
+      ref: "User",
+    },
+  ],
+  fileTree: {
+    type: Object,
+    default: {},
+  },
+});
 
-
-const Project = mongoose.model('project', projectSchema);
+const Project = mongoose.model("project", projectSchema);
 
 export default Project;

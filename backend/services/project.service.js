@@ -93,3 +93,30 @@ export const getProjectById = async({projectId}) => {
 
   return project;
 }
+
+export const updateFileTree = async ({ projectId, fileTree }) => {
+  if (!projectId) {
+      throw new Error("projectId is required");
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      throw new Error("Invalid projectId");
+  }
+
+  if (!fileTree || typeof fileTree !== 'object') {
+      throw new Error("fileTree must be a valid object");
+  }
+
+  // Corrected usage of ObjectId: use 'new' keyword
+  const updatedProject = await projectModel.findOneAndUpdate(
+    { _id: new mongoose.Types.ObjectId(projectId) }, // Use 'new' here
+    { $set: { fileTree } },  // Use $set to ensure we only update the fileTree field
+    { new: true }  // Return the updated project
+  );
+
+  if (!updatedProject) {
+      throw new Error("Project not found");
+  }
+
+  return updatedProject;
+};

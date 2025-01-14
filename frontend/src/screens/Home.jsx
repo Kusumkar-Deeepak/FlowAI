@@ -1,25 +1,27 @@
-import { useContext, useState, useEffect } from 'react';
-import { UserContext } from '../context/user.context';
-import axios from '../config/axios';
-import { useNavigate } from 'react-router-dom';
+import { useContext, useState, useEffect } from "react";
+import { UserContext } from "../context/user.context";
+import axios from "../config/axios";
+import { useNavigate } from "react-router-dom";
 const Home = () => {
   const navigate = useNavigate();
   const { user } = useContext(UserContext);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [projectName, setProjectName] = useState('');
+  const [projectName, setProjectName] = useState("");
   const [projects, setProjects] = useState([]);
 
-  console.log('user',user);
+  console.log("user", user);
   // Fetch projects on component mount
   useEffect(() => {
     axios
-      .get('/project/all')
+      .get("/project/all")
       .then((res) => {
+        console.log("Fetched projects:", res.data.projects);
         setProjects(res.data.projects);
       })
       .catch((err) => {
-        console.error('Error fetching projects:', err);
+        console.error("Error fetching projects:", err);
       });
+      console.log('Projects:', projects);
   }, []); // Run only once when the component mounts
 
   const openModal = () => setIsModalOpen(true);
@@ -27,17 +29,17 @@ const Home = () => {
 
   const createProject = () => {
     axios
-      .post('/project/create', {
+      .post("/project/create", {
         name: projectName,
       })
       .then((res) => {
-        console.log('Project created successfully:', res.data);
+        console.log("Project created successfully:", res.data);
         setProjects([...projects, res.data.project]); // Update project list
-        setProjectName(''); // Reset input field
+        setProjectName(""); // Reset input field
         closeModal(); // Close modal
       })
       .catch((err) => {
-        console.error('Error creating project:', err);
+        console.error("Error creating project:", err);
       });
   };
 
@@ -52,25 +54,34 @@ const Home = () => {
           <span className="text-sm font-medium">New Project</span>
         </button>
 
-        {projects.map((project) => (
-          <div
-            onClick={() => {
-              navigate('/project', {
-                state: {project}
-              })
-            }}
-            key={project._id}
-            className="project h-20 w-48 flex flex-col justify-between p-3 border border-slate-300 rounded-md hover:bg-gray-200 shadow-sm"
-          >
-            <h2 className="text-sm font-semibold truncate">{project.name}</h2>
-            <div className="flex items-center gap-1 text-xs text-gray-600">
-              <i className="ri-user-line text-base"></i>
-              <span>{project.users.length} {project.users.length === 1 ? 'Collaborator' : 'Collaborators'}</span>
-            </div>
-          </div>
-        ))}
-      </div>
+        {projects
+          .filter((project) => project && project.name) // Filter out invalid projects
+          .map((project) => (
+            <div
+              onClick={() => {
+                navigate("/project", {
+                  state: { project },
+                });
+              }}
+              key={project._id}
+              className="project h-20 w-48 flex flex-col justify-between p-3 border border-slate-300 rounded-md hover:bg-gray-200 shadow-sm"
+            >
+              <h2 className="text-sm font-semibold truncate">
+                {project.name || "Untitled Project"}
+              </h2>
 
+              <div className="flex items-center gap-1 text-xs text-gray-600">
+                <i className="ri-user-line text-base"></i>
+                <span>
+                  {project.users.length}{" "}
+                  {project.users.length === 1
+                    ? "Collaborator"
+                    : "Collaborators"}
+                </span>
+              </div>
+            </div>
+          ))}
+      </div>
 
       {/* Modal */}
       {isModalOpen && (
